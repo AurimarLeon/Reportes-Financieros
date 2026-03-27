@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prepagos por Mes</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; min-height: 100vh; background: #0a1f3d; font-family: Arial, sans-serif; }
+  .wrap { padding: 28px 36px; }
+
+  .hdr { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 18px; flex-wrap: wrap; gap: 10px; }
+  .ttl { font-size: 22px; font-weight: 700; color: #ffffff; }
+  .sub { font-size: 12px; color: #6B9DC2; margin-top: 4px; }
+  .logo { font-size: 11px; color: #6B9DC2; text-align: right; padding-top: 4px; }
+
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 18px; }
+  .k { background: rgba(255,255,255,0.06); border: 0.5px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 12px 14px; }
+  .kl { font-size: 10px; color: #6B9DC2; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+  .kv { font-size: 20px; font-weight: 700; color: #4FC3F7; }
+  .ks { font-size: 10px; color: #6B9DC2; margin-top: 2px; }
+
+  .view-btns { display: flex; gap: 8px; margin-bottom: 16px; }
+  .vbtn { font-size: 11px; font-weight: 600; padding: 6px 16px; border-radius: 20px; border: 1.5px solid rgba(255,255,255,0.2); background: transparent; color: #6B9DC2; cursor: pointer; transition: all .2s; }
+  .vbtn:hover { border-color: rgba(255,255,255,0.5); color: #fff; }
+  .vbtn.active { background: #fff; color: #0a1f3d; border-color: #fff; }
+
+  .chart-box { background: rgba(255,255,255,0.03); border: 0.5px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 18px; position: relative; height: 360px; margin-bottom: 18px; }
+
+  .table-wrap { overflow-x: auto; border-radius: 10px; border: 0.5px solid rgba(255,255,255,0.1); }
+  table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  thead th { background: #1a3a5c; color: #6B9DC2; padding: 9px 12px; text-align: center; font-size: 10px; text-transform: uppercase; letter-spacing: .4px; font-weight: 600; white-space: nowrap; }
+  tbody tr:nth-child(even) { background: rgba(255,255,255,0.03); }
+  tbody tr:nth-child(odd)  { background: rgba(255,255,255,0.01); }
+  tbody tr.peak { background: rgba(255,211,77,0.12) !important; }
+  tbody tr:hover { background: rgba(79,195,247,0.08) !important; }
+  tbody td { padding: 7px 12px; color: #cbd5e0; border-bottom: 0.5px solid rgba(255,255,255,0.05); white-space: nowrap; }
+  tbody td.peak-cell { color: #FFD54F; font-weight: 700; }
+  tfoot td { background: #1F4E79; color: #fff; font-weight: 700; padding: 9px 12px; text-align: center; }
+
+  .bar-inline { display: inline-block; height: 6px; border-radius: 3px; background: #4FC3F7; vertical-align: middle; margin-left: 6px; }
+
+  .footer { display: flex; justify-content: space-between; margin-top: 12px; font-size: 10px; color: rgba(107,157,194,0.5); flex-wrap: wrap; gap: 6px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hdr">
+    <div>
+      <div class="ttl">Prepagos — Total por mes</div>
+      <div class="sub">ene 2023 – feb 2026 &nbsp;|&nbsp; 192 operaciones &nbsp;|&nbsp; Cartera con garantías inmobiliarias</div>
+    </div>
+    <div class="logo">Reporte CFO · RTC<br>Mar 2026</div>
+  </div>
+
+  <div class="kpis">
+    <div class="k"><div class="kl">Total acumulado</div><div class="kv">S/ 30.8M</div><div class="ks">ene/2023 – feb/2026</div></div>
+    <div class="k"><div class="kl">Mes pico</div><div class="kv">Nov/2025</div><div class="ks">S/ 2,932,000</div></div>
+    <div class="k"><div class="kl">Promedio mensual</div><div class="kv">S/ 855K</div><div class="ks">36 meses activos</div></div>
+    <div class="k"><div class="kl">Último mes</div><div class="kv">S/ 790K</div><div class="ks">feb/2026</div></div>
+    <div class="k"><div class="kl">Meses &gt; S/1M</div><div class="kv">12 meses</div><div class="ks">33% del período</div></div>
+  </div>
+
+  <div class="view-btns">
+    <button class="vbtn active" onclick="setView('bar')">Barras</button>
+    <button class="vbtn" onclick="setView('line')">Línea</button>
+    <button class="vbtn" onclick="setView('table')">Tabla</button>
+  </div>
+
+  <div class="chart-box" id="chart-box">
+    <canvas id="chart"></canvas>
+  </div>
+
+  <div id="table-box" style="display:none">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Mes</th>
+            <th>Monto (S/)</th>
+            <th>Acumulado (S/)</th>
+            <th>% del total</th>
+            <th>Tendencia</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+        <tfoot>
+          <tr>
+            <td colspan="2">TOTAL</td>
+            <td>S/ 30,793,874</td>
+            <td>S/ 30,793,874</td>
+            <td>100.0%</td>
+            <td>—</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+
+  <div class="footer">
+    <span>Fuente: Hoja Prepagos · 192 registros · datos al feb/2026</span>
+    <span>Reporte CFO — RTC Patrimonio en Fideicomiso</span>
+  </div>
+
+</div>
+
+<script>
+const DATA = [
+  {m:'ene/23', v:571420},
+  {m:'feb/23', v:120726},
+  {m:'mar/23', v:269676},
+  {m:'abr/23', v:714971},
+  {m:'may/23', v:459223},
+  {m:'jun/23', v:425621},
+  {m:'jul/23', v:527377},
+  {m:'ago/23', v:1332703},
+  {m:'sep/23', v:674473},
+  {m:'oct/23', v:262346},
+  {m:'nov/23', v:788308},
+  {m:'dic/23', v:1249141},
+  {m:'ene/24', v:781973},
+  {m:'feb/24', v:0},
+  {m:'mar/24', v:346675},
+  {m:'abr/24', v:265407},
+  {m:'may/24', v:1113931},
+  {m:'jun/24', v:365066},
+  {m:'jul/24', v:1119756},
+  {m:'ago/24', v:282314},
+  {m:'sep/24', v:421550},
+  {m:'oct/24', v:1042249},
+  {m:'nov/24', v:106000},
+  {m:'dic/24', v:1037032},
+  {m:'ene/25', v:858104},
+  {m:'feb/25', v:2181281},
+  {m:'mar/25', v:118325},
+  {m:'abr/25', v:0},
+  {m:'may/25', v:629289},
+  {m:'jun/25', v:740878},
+  {m:'jul/25', v:494021},
+  {m:'ago/25', v:2024418},
+  {m:'sep/25', v:1088856},
+  {m:'oct/25', v:373388},
+  {m:'nov/25', v:2932000},
+  {m:'dic/25', v:1661655},
+  {m:'ene/26', v:2623690},
+  {m:'feb/26', v:790033},
+];
+
+const peak = Math.max(...DATA.map(d=>d.v));
+const total = DATA.reduce((a,b)=>a+b.v,0);
+const labels = DATA.map(d=>d.m);
+const values = DATA.map(d=>d.v);
+
+const bgColors = values.map(v =>
+  v === peak  ? '#FFD54F' :
+  v > 1000000 ? '#FF8A65' :
+  v === 0     ? 'rgba(255,255,255,0.1)' : '#4FC3F7'
+);
+const bdColors = values.map(v =>
+  v === peak  ? '#F9A825' :
+  v > 1000000 ? '#E64A19' :
+  v === 0     ? 'rgba(255,255,255,0.2)' : '#0288D1'
+);
+
+let chart = null;
+let currentView = 'bar';
+
+function fmtS(n) {
+  return 'S/ ' + n.toLocaleString('es-PE');
+}
+
+function buildChart(type) {
+  if (chart) { chart.destroy(); chart = null; }
+  document.getElementById('chart-box').style.display = 'block';
+  document.getElementById('table-box').style.display = 'none';
+
+  const isLine = type === 'line';
+  chart = new Chart(document.getElementById('chart'), {
+    type: isLine ? 'line' : 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Monto prepagado S/',
+        data: values,
+        backgroundColor: isLine ? 'rgba(79,195,247,0.1)' : bgColors,
+        borderColor:     isLine ? '#4FC3F7' : bdColors,
+        borderWidth: isLine ? 2.5 : 1,
+        borderRadius: isLine ? 0 : 3,
+        pointRadius: isLine ? 4 : 0,
+        pointHoverRadius: isLine ? 7 : 0,
+        pointBackgroundColor: isLine ? bgColors : undefined,
+        tension: 0.35,
+        fill: isLine,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#0d2a4a',
+          borderColor: 'rgba(255,255,255,0.15)',
+          borderWidth: 1,
+          titleColor: '#6B9DC2',
+          bodyColor: '#fff',
+          padding: 10,
+          callbacks: {
+            label: ctx => ' ' + fmtS(ctx.parsed.y)
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color:'#6B9DC2', font:{size:9}, maxRotation:45, autoSkip:false },
+          grid:  { color:'rgba(255,255,255,0.04)' }
+        },
+        y: {
+          ticks: {
+            color:'#6B9DC2', font:{size:10},
+            callback: v => v>=1000000 ? (v/1000000).toFixed(1)+'M' : v>=1000 ? (v/1000).toFixed(0)+'K' : v
+          },
+          grid: { color:'rgba(255,255,255,0.06)' }
+        }
+      }
+    }
+  });
+}
+
+function buildTable() {
+  if (chart) { chart.destroy(); chart = null; }
+  document.getElementById('chart-box').style.display = 'none';
+  document.getElementById('table-box').style.display = 'block';
+
+  let acum = 0;
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML = DATA.map((d, i) => {
+    acum += d.v;
+    const pct = (d.v / total * 100).toFixed(1);
+    const barW = Math.round(d.v / peak * 80);
+    const isPeak = d.v === peak;
+    const isHigh = d.v > 1000000 && !isPeak;
+    const cls = isPeak ? 'peak' : '';
+    const valCls = isPeak ? 'peak-cell' : isHigh ? '' : '';
+    const valStyle = isHigh && !isPeak ? 'color:#FF8A65' : '';
+    return `<tr class="${cls}">
+      <td style="color:#6B9DC2;text-align:center">${i+1}</td>
+      <td style="font-weight:600;color:#fff">${d.m}</td>
+      <td class="${valCls}" style="${valStyle};text-align:right">${fmtS(d.v)}</td>
+      <td style="text-align:right;color:#6B9DC2">${fmtS(acum)}</td>
+      <td style="text-align:center;color:#6B9DC2">${pct}%</td>
+      <td><span class="bar-inline" style="width:${barW}px;background:${isPeak?'#FFD54F':isHigh?'#FF8A65':'#4FC3F7'}"></span></td>
+    </tr>`;
+  }).join('');
+}
+
+function setView(v) {
+  currentView = v;
+  document.querySelectorAll('.vbtn').forEach((b,i) =>
+    b.classList.toggle('active', ['bar','line','table'][i] === v));
+  if (v === 'table') buildTable();
+  else buildChart(v);
+}
+
+setView('bar');
+</script>
+</body>
+</html>
