@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prepagos por Mes</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;min-height:100vh;background:#0a1f3d;font-family:Arial,sans-serif}
+.wrap{padding:28px 36px}
+.hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;flex-wrap:wrap;gap:10px}
+.ttl{font-size:22px;font-weight:700;color:#fff}
+.sub{font-size:12px;color:#6B9DC2;margin-top:4px}
+.logo{font-size:11px;color:#6B9DC2;text-align:right;padding-top:4px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:18px}
+.k{background:rgba(255,255,255,0.06);border:0.5px solid rgba(255,255,255,0.12);border-radius:10px;padding:12px 14px}
+.kl{font-size:10px;color:#6B9DC2;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.kv{font-size:20px;font-weight:700;color:#4FC3F7}
+.kv.peak{color:#FFD54F}
+.ks{font-size:10px;color:#6B9DC2;margin-top:2px}
+.view-btns{display:flex;gap:8px;margin-bottom:16px}
+.vbtn{font-size:11px;font-weight:600;padding:6px 16px;border-radius:20px;border:1.5px solid rgba(255,255,255,0.2);background:transparent;color:#6B9DC2;cursor:pointer;transition:all .2s}
+.vbtn:hover{border-color:rgba(255,255,255,0.5);color:#fff}
+.vbtn.active{background:#fff;color:#0a1f3d;border-color:#fff}
+.chart-box{background:rgba(255,255,255,0.03);border:0.5px solid rgba(255,255,255,0.08);border-radius:12px;padding:18px;position:relative;height:360px;margin-bottom:18px}
+.table-wrap{overflow-x:auto;border-radius:10px;border:0.5px solid rgba(255,255,255,0.1)}
+table{width:100%;border-collapse:collapse;font-size:11px}
+thead th{background:#1a3a5c;color:#6B9DC2;padding:9px 12px;text-align:center;font-size:10px;text-transform:uppercase;letter-spacing:.4px;font-weight:600;white-space:nowrap}
+tbody tr:nth-child(even){background:rgba(255,255,255,0.03)}
+tbody tr:nth-child(odd){background:rgba(255,255,255,0.01)}
+tbody tr.peak-row{background:rgba(255,211,77,0.12)!important}
+tbody tr.high-row{background:rgba(255,138,101,0.08)!important}
+tbody tr:hover{background:rgba(79,195,247,0.08)!important}
+tbody td{padding:7px 12px;color:#cbd5e0;border-bottom:0.5px solid rgba(255,255,255,0.05);white-space:nowrap}
+tfoot td{background:#1F4E79;color:#fff;font-weight:700;padding:9px 12px;text-align:center}
+.bar-inline{display:inline-block;height:6px;border-radius:3px;vertical-align:middle;margin-left:6px}
+.footer{display:flex;justify-content:space-between;margin-top:12px;font-size:10px;color:rgba(107,157,194,0.5);flex-wrap:wrap;gap:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hdr">
+    <div>
+      <div class="ttl">Prepagos — Total por mes</div>
+      <div class="sub">ene 2023 – feb 2026 &nbsp;|&nbsp; 192 operaciones &nbsp;|&nbsp; Cartera con garantías inmobiliarias</div>
+    </div>
+    <div class="logo">Reporte CFO · RTC<br>Mar 2026</div>
+  </div>
+  <div class="kpis">
+    <div class="k"><div class="kl">Total acumulado</div><div class="kv">S/ 30.8M</div><div class="ks">ene/2023 – feb/2026</div></div>
+    <div class="k"><div class="kl">Mes pico</div><div class="kv peak">Jan/2026</div><div class="ks">S/ 3,692,935</div></div>
+    <div class="k"><div class="kl">Promedio mensual</div><div class="kv">S/ 855K</div><div class="ks">36 meses activos</div></div>
+    <div class="k"><div class="kl">Último mes</div><div class="kv">S/ 790K</div><div class="ks">Feb/2026</div></div>
+    <div class="k"><div class="kl">Meses &gt; S/1M</div><div class="kv">11 meses</div><div class="ks">31% del período</div></div>
+  </div>
+  <div class="view-btns">
+    <button class="vbtn active" onclick="setView('bar')">Barras</button>
+    <button class="vbtn" onclick="setView('line')">Línea</button>
+    <button class="vbtn" onclick="setView('table')">Tabla</button>
+  </div>
+  <div class="chart-box" id="chart-box"><canvas id="chart"></canvas></div>
+  <div id="table-box" style="display:none">
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>#</th><th>Mes</th><th>Monto (S/)</th><th>Acumulado (S/)</th><th>% Total</th><th>Proporción</th></tr></thead>
+        <tbody id="tbody"></tbody>
+        <tfoot><tr><td colspan="2">TOTAL</td><td>S/ 30,793,876</td><td>S/ 30,793,876</td><td>100.0%</td><td>—</td></tr></tfoot>
+      </table>
+    </div>
+  </div>
+  <div class="footer">
+    <span>Fuente: Hoja Prepagos · 192 registros · datos al feb/2026</span>
+    <span>Reporte CFO — RTC Patrimonio en Fideicomiso</span>
+  </div>
+</div>
+<script>
+const LABELS = ["Jan/2023", "Feb/2023", "Mar/2023", "Apr/2023", "May/2023", "Jun/2023", "Jul/2023", "Aug/2023", "Sep/2023", "Oct/2023", "Nov/2023", "Dec/2023", "Jan/2024", "Mar/2024", "Apr/2024", "May/2024", "Jun/2024", "Jul/2024", "Aug/2024", "Sep/2024", "Oct/2024", "Nov/2024", "Dec/2024", "Jan/2025", "Feb/2025", "Mar/2025", "May/2025", "Jun/2025", "Jul/2025", "Aug/2025", "Sep/2025", "Oct/2025", "Nov/2025", "Dec/2025", "Jan/2026", "Feb/2026"];
+const VALUES = [571420, 120726, 269676, 714971, 459223, 425621, 527377, 1332703, 674473, 262346, 788308, 1249141, 781973, 346675, 265407, 1113931, 365066, 1119756, 282314, 421550, 1042249, 106000, 1037032, 858104, 2181281, 118325, 629289, 740878, 494021, 2024418, 1088856, 373388, 2932000, 592410, 3692935, 790033];
+const PEAK   = 3692935;
+const TOTAL  = 30793876;
+
+const bgColors = VALUES.map(v =>
+  v===PEAK ? '#FFD54F' : v>=1000000 ? '#FF8A65' : v===0 ? 'rgba(255,255,255,0.1)' : '#4FC3F7');
+const bdColors = VALUES.map(v =>
+  v===PEAK ? '#F9A825' : v>=1000000 ? '#E64A19' : v===0 ? 'rgba(255,255,255,0.2)' : '#0288D1');
+
+let chart=null;
+
+function fmtS(n){return 'S/ '+n.toLocaleString('es-PE')}
+
+function buildChart(type){
+  if(chart){chart.destroy();chart=null;}
+  document.getElementById('chart-box').style.display='block';
+  document.getElementById('table-box').style.display='none';
+  const isLine=type==='line';
+  chart=new Chart(document.getElementById('chart'),{
+    type:isLine?'line':'bar',
+    data:{labels:LABELS,datasets:[{
+      label:'Monto prepagado S/',data:VALUES,
+      backgroundColor:isLine?'rgba(79,195,247,0.1)':bgColors,
+      borderColor:isLine?'#4FC3F7':bdColors,
+      borderWidth:isLine?2.5:1,borderRadius:isLine?0:3,
+      pointRadius:isLine?4:0,pointHoverRadius:isLine?7:0,
+      pointBackgroundColor:isLine?bgColors:undefined,
+      tension:0.35,fill:isLine,
+    }]},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{backgroundColor:'#0d2a4a',borderColor:'rgba(255,255,255,0.15)',borderWidth:1,
+          titleColor:'#6B9DC2',bodyColor:'#fff',padding:10,
+          callbacks:{label:ctx=>' '+fmtS(ctx.parsed.y)}}
+      },
+      scales:{
+        x:{ticks:{color:'#6B9DC2',font:{size:9},maxRotation:45,autoSkip:false},grid:{color:'rgba(255,255,255,0.04)'}},
+        y:{ticks:{color:'#6B9DC2',font:{size:10},
+          callback:v=>v>=1000000?(v/1000000).toFixed(1)+'M':v>=1000?(v/1000).toFixed(0)+'K':v},
+          grid:{color:'rgba(255,255,255,0.06)'}}
+      }
+    }
+  });
+}
+
+function buildTable(){
+  if(chart){chart.destroy();chart=null;}
+  document.getElementById('chart-box').style.display='none';
+  document.getElementById('table-box').style.display='block';
+  let acum=0;
+  document.getElementById('tbody').innerHTML=VALUES.map((v,i)=>{
+    acum+=v;
+    const pct=(v/TOTAL*100).toFixed(1);
+    const bw=Math.round(v/PEAK*80);
+    const isPeak=v===PEAK, isHigh=v>=1000000&&!isPeak;
+    const cls=isPeak?'peak-row':isHigh?'high-row':'';
+    const vc=isPeak?'color:#FFD54F;font-weight:700':isHigh?'color:#FF8A65':'';
+    const bc=isPeak?'#FFD54F':isHigh?'#FF8A65':'#4FC3F7';
+    return `<tr class="${cls}">
+      <td style="color:#6B9DC2;text-align:center">${i+1}</td>
+      <td style="font-weight:600;color:#fff">${LABELS[i]}</td>
+      <td style="${vc};text-align:right">${fmtS(v)}</td>
+      <td style="text-align:right;color:#6B9DC2">${fmtS(acum)}</td>
+      <td style="text-align:center;color:#6B9DC2">${pct}%</td>
+      <td><span class="bar-inline" style="width:${bw}px;background:${bc}"></span></td>
+    </tr>`;
+  }).join('');
+}
+
+function setView(v){
+  document.querySelectorAll('.vbtn').forEach((b,i)=>b.classList.toggle('active',['bar','line','table'][i]===v));
+  if(v==='table') buildTable(); else buildChart(v);
+}
+setView('bar');
+</script>
+</body>
+</html>
