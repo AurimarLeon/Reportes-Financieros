@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Morosidad</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; background: #0a1f3d; font-family: Arial, sans-serif; }
+
+  .slide {
+    width: 100%;
+    min-height: 100vh;
+    background: #0a1f3d;
+    padding: 28px 36px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .title-block .main-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #ffffff;
+    letter-spacing: 0.3px;
+  }
+
+  .title-block .sub-title {
+    font-size: 12px;
+    color: #6B9DC2;
+    margin-top: 4px;
+  }
+
+  .logo-box {
+    font-size: 11px;
+    color: #6B9DC2;
+    text-align: right;
+    padding-top: 4px;
+  }
+
+  .selector-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .btn-veh {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 7px 18px;
+    border-radius: 22px;
+    border: 1.5px solid rgba(255,255,255,0.2);
+    background: transparent;
+    color: #6B9DC2;
+    cursor: pointer;
+    transition: all .2s;
+    letter-spacing: 0.2px;
+  }
+
+  .btn-veh:hover { border-color: rgba(255,255,255,0.5); color: #ffffff; }
+  .btn-veh.active { background: #ffffff; color: #0a1f3d; border-color: #ffffff; }
+
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+  }
+
+  .mcard {
+    background: rgba(255,255,255,0.06);
+    border: 0.5px solid rgba(255,255,255,0.12);
+    border-radius: 10px;
+    padding: 12px 14px;
+  }
+
+  .mcard-label { font-size: 10px; color: #6B9DC2; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .mcard-val { font-size: 22px; font-weight: 700; }
+  .mcard-delta { font-size: 10px; margin-top: 3px; }
+
+  .chart-wrap {
+    position: relative;
+    width: 100%;
+    height: 340px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 12px;
+    padding: 16px;
+    border: 0.5px solid rgba(255,255,255,0.08);
+  }
+
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    padding: 4px 0;
+  }
+
+  .leg-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: #6B9DC2;
+  }
+
+  .leg-line {
+    width: 18px;
+    height: 3px;
+    border-radius: 2px;
+  }
+
+  .footer {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: rgba(107,157,194,0.5);
+    border-top: 0.5px solid rgba(255,255,255,0.07);
+    padding-top: 10px;
+  }
+
+  .badge-critico  { color: #EF5350; }
+  .badge-alerta   { color: #FFB74D; }
+  .badge-mejora   { color: #81C784; }
+  .badge-estable  { color: #4FC3F7; }
+</style>
+</head>
+<body>
+<div class="slide">
+
+  <div class="top-bar">
+    <div class="title-block">
+      <div class="main-title" id="main-title">Cartera Global — Morosidad</div>
+      <div class="sub-title">ene 2025 – feb 2026 &nbsp;|&nbsp; Cartera con garantías inmobiliarias</div>
+    </div>
+    <div class="logo-box">Reporte Ejecutivo CFO<br>Mar 2026</div>
+  </div>
+
+  <div class="selector-row">
+    <button class="btn-veh active" onclick="setVeh(0)">Cartera Global</button>
+    <button class="btn-veh"        onclick="setVeh(1)">Fid RTC</button>
+    <button class="btn-veh"        onclick="setVeh(2)">NPL</button>
+    <button class="btn-veh"        onclick="setVeh(3)">HLIII</button>
+  </div>
+
+  <div class="metrics" id="metrics"></div>
+
+  <div class="chart-wrap">
+    <canvas id="chart"></canvas>
+  </div>
+
+  <div class="legend" id="legend"></div>
+
+  <div class="footer">
+    <span id="footer-left">Selecciona un vehículo para ver el detalle</span>
+    <span>Fuente: Sistema interno · Datos al feb/2026</span>
+  </div>
+
+</div>
+
+<script>
+const meses = ['ene/25','feb/25','mar/25','abr/25','may/25','jun/25',
+               'jul/25','ago/25','sep/25','oct/25','nov/25','dic/25','ene/26','feb/26'];
+
+const vehiculos = [
+  {
+    nombre: 'Cartera Global — Morosidad',
+    series: [
+      { label:'CPP 9-30d',        color:'#4FC3F7', data:[5.91,6.84,8.09,10.84,6.45,5.74,6.70,6.34,6.52,7.13,8.85,8.61,8.92,9.60] },
+      { label:'Deficiente 31-60d',color:'#FF8A65', data:[9.36,7.94,7.85,7.05,8.47,9.08,6.86,6.81,6.74,6.70,6.33,7.57,8.15,8.27] },
+      { label:'Mora 61-120d',     color:'#81C784', data:[2.87,3.32,3.40,4.57,3.47,3.21,4.17,3.20,2.75,2.79,2.10,3.17,2.25,2.56] },
+      { label:'PE +120d',         color:'#FFD54F', data:[7.65,8.24,7.43,6.25,6.44,6.60,6.14,5.53,5.87,6.40,6.15,5.62,6.45,5.61] },
+    ]
+  },
+  {
+    nombre: 'Fid RTC — Cartera atrasada',
+    series: [
+      { label:'>120 días', color:'#4FC3F7', data:[null,6.04,5.66,4.52,5.40,5.75,5.58,5.09,5.33,5.91,5.86,5.31,5.90,3.45] },
+      { label:'>60 días',  color:'#FF8A65', data:[8.35,9.61,9.33,9.36,9.09,9.24,9.92,8.33,8.30,8.84,7.78,8.43,8.43,6.27] },
+      { label:'X>30 días', color:'#CE93D8', data:[18.38,18.14,17.62,16.91,18.24,18.83,17.20,15.58,15.44,15.63,14.70,16.26,17.78,15.43] },
+    ]
+  },
+  {
+    nombre: 'NPL — Ratio de mora',
+    series: [
+      { label:'>120 días', color:'#4FC3F7', data:[null,90.32,87.25,87.25,83.03,80.15,77.80,73.66,94.27,94.32,94.16,94.05,95.24,92.80] },
+      { label:'>60 días',  color:'#FF8A65', data:[null,90.32,87.25,87.25,83.03,80.15,95.10,94.23,94.27,94.32,94.16,94.05,95.24,92.80] },
+      { label:'X>30 días', color:'#EF5350', data:[null,90.32,87.25,87.25,83.03,95.62,100,100,100,100,100,100,100,94.70] },
+    ]
+  },
+  {
+    nombre: 'HLIII — Cartera atrasada',
+    series: [
+      { label:'>120 días', color:'#4FC3F7', data:[null,1.40,1.17,1.05,0.84,2.09,1.00,1.10,0,0,0,0,3.25,0] },
+      { label:'>60 días',  color:'#81C784', data:[null,1.40,1.17,2.81,2.24,2.09,1.00,1.10,0,1.17,4.07,4.01,4.02,0.74] },
+      { label:'X>30 días', color:'#FFD54F', data:[null,1.71,4.60,4.13,3.27,2.20,3.12,2.26,1.16,6.76,4.67,9.23,4.59,2.60] },
+    ]
+  }
+];
+
+let chart = null;
+
+function getTendencia(data) {
+  const v = data.filter(x => x !== null);
+  const last = v[v.length-1];
+  const avg  = v.slice(0,-3).reduce((a,b)=>a+b,0) / (v.length-3);
+  const diff = last - avg;
+  if (last > 80)       return { label:'Crítico',  cls:'badge-critico' };
+  if (diff >  1.5)     return { label:'Alerta ▲', cls:'badge-alerta'  };
+  if (diff < -1.5)     return { label:'Mejora ▼', cls:'badge-mejora'  };
+  return               { label:'Estable',  cls:'badge-estable' };
+}
+
+function buildMetrics(veh) {
+  document.getElementById('metrics').innerHTML = veh.series.map(s => {
+    const valid = s.data.filter(v => v !== null);
+    const last  = valid[valid.length-1];
+    const prev  = valid[valid.length-2];
+    const delta = (last - prev).toFixed(2);
+    const up    = delta > 0;
+    const tend  = getTendencia(s.data);
+    return `<div class="mcard">
+      <div class="mcard-label">${s.label}</div>
+      <div class="mcard-val" style="color:${s.color}">${last.toFixed(2)}%</div>
+      <div class="mcard-delta ${tend.cls}">${tend.label} &nbsp; ${up?'▲':'▼'} ${Math.abs(delta)}pp</div>
+    </div>`;
+  }).join('');
+}
+
+function buildLegend(veh) {
+  document.getElementById('legend').innerHTML = veh.series.map(s =>
+    `<span class="leg-item">
+       <span class="leg-line" style="background:${s.color}"></span>${s.label}
+     </span>`
+  ).join('');
+}
+
+function setVeh(idx) {
+  const veh = vehiculos[idx];
+  document.getElementById('main-title').textContent = veh.nombre;
+  document.getElementById('footer-left').textContent =
+    `${veh.series.length} series · ${meses.length} períodos · último dato: feb/2026`;
+  document.querySelectorAll('.btn-veh').forEach((b,i) => b.classList.toggle('active', i===idx));
+
+  buildMetrics(veh);
+  buildLegend(veh);
+
+  const datasets = veh.series.map(s => ({
+    label:           s.label,
+    data:            s.data,
+    borderColor:     s.color,
+    backgroundColor: s.color + '15',
+    borderWidth:     2.5,
+    pointRadius:     4,
+    pointHoverRadius:7,
+    pointBackgroundColor: s.color,
+    tension:         0.35,
+    fill:            false,
+    spanGaps:        true
+  }));
+
+  if (chart) {
+    chart.data.datasets = datasets;
+    chart.update('active');
+  } else {
+    chart = new Chart(document.getElementById('chart'), {
+      type: 'line',
+      data: { labels: meses, datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#0d2a4a',
+            borderColor: 'rgba(255,255,255,0.15)',
+            borderWidth: 1,
+            titleColor: '#6B9DC2',
+            bodyColor: '#ffffff',
+            padding: 10,
+            callbacks: {
+              label: ctx => {
+                const v = ctx.parsed.y;
+                return v !== null ? ` ${ctx.dataset.label}: ${v.toFixed(2)}%` : ` ${ctx.dataset.label}: —`;
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            ticks: { color:'#6B9DC2', font:{ size:10 }, maxRotation:45, autoSkip:false },
+            grid:  { color:'rgba(255,255,255,0.05)' },
+            border:{ color:'rgba(255,255,255,0.1)' }
+          },
+          y: {
+            ticks: { color:'#6B9DC2', font:{ size:10 }, callback: v => v.toFixed(1)+'%' },
+            grid:  { color:'rgba(255,255,255,0.05)' },
+            border:{ color:'rgba(255,255,255,0.1)' }
+          }
+        }
+      }
+    });
+  }
+}
+
+setVeh(0);
+</script>
+</body>
+</html>
